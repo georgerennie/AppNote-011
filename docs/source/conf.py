@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-project = 'YosysHQ Unnamed Project'
+project = 'YosysHQ AppNote-011'
 author = 'YosysHQ GmbH'
 copyright ='2021 YosysHQ GmbH'
 
