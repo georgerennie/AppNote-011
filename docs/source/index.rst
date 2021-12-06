@@ -6,4 +6,6 @@ Tabby CAD Introduction and FAQs for Formal Use
    :maxdepth: 3
 
    intro.rst
-   faq.rst
+   faq_sby.rst
+   faq_mcy.rst
+   faq_eqy.rst
