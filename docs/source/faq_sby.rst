@@ -38,10 +38,10 @@ iterate on a design. Check out the `autotune docs
 <https://yosyshq.readthedocs.io/projects/sby/en/latest/autotune.html>`_ for more
 information.
 
-Witness waves
-^^^^^^^^^^^^^
+Witness cover traces
+^^^^^^^^^^^^^^^^^^^^
 
-**Q:** How do I produce witness waves for a passing assertion?
+**Q:** How do I produce witness cover traces for a passing assertion?
 
 **A:** Check out the `witness cover section
 <https://yosyshq.readthedocs.io/projects/ap120/en/latest/#witness-cover>`_ of our
