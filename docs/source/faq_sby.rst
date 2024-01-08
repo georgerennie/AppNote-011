@@ -133,9 +133,10 @@ your clocks are actually related, do add an assumption about that.
 
 **A:** You need to set ``multiclock on`` in the ``[options]`` section whenver the design contains entities that are sensitive to different events.
 This includes:
-  - multiple clock signals
-  - multiple edges of the same clock signal
-  - any asynchronous logic (with the exception of asynchronous resets that should be treated as synchronous)
+
+- multiple clock signals
+- multiple edges of the same clock signal
+- any asynchronous logic (with the exception of asynchronous resets that should be treated as synchronous)
 
 
 Semantics of "disable iff"
