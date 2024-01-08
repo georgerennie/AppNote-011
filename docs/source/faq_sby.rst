@@ -1,21 +1,22 @@
 FAQs relating to SBY
 --------------------
 
-Semantics of "disable iff"
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Documentation
+^^^^^^^^^^^^^
 
-**Q:** I would have expected the following to pass. Why does it not pass?
+**Q:** Where are the docs?
 
-.. code-block:: systemverilog
+**A:** `SBY docs <https://yosyshq.readthedocs.io/projects/sby/en/latest/index.html>`_
 
-   assume property (@(posedge clock) A |-> B disable iff (reset));
-   assert property (@(posedge clock) A && !reset |-> B );
 
-**A:** Both of those properties are two simulation cycles long, because the
-clock edge between those two cycles is part of the property. The ``disable iff``
-statement behaves similar to an *asynchronous* reset that is not sampled
-by the clock, thus the sequence ``A && !B && !reset ##1 reset`` will disable
-the assumption, but will not disable the assertion in the above example.
+SystemVerilog Assertions (SVA)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** What subset of SVA is supported?
+
+**A:** Refer to the SBY docs: `Supported SVA property syntax
+<https://yosyshq.readthedocs.io/projects/sby/en/latest/verific.html#supported-sva-property-syntax>`_
+
 
 Choosing an engine and solver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -38,34 +39,6 @@ iterate on a design. Check out the `autotune docs
 <https://yosyshq.readthedocs.io/projects/sby/en/latest/autotune.html>`_ for more
 information.
 
-Witness cover traces
-^^^^^^^^^^^^^^^^^^^^
-
-**Q:** How do I produce witness cover traces for a passing assertion?
-
-**A:** Check out the `witness cover section
-<https://yosyshq.readthedocs.io/projects/ap120/en/latest/#witness-cover>`_ of our
-whitepaper, `Weak precondition cover and witness for SVA properties
-<https://yosyshq.readthedocs.io/projects/ap120>`_.
-
-Where do assertions fail
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Q:** How do I see what is causing my assertion to fail?
-
-**A:** If an assertion is failing, SBY will provide a counterexample trace.
-Provided you are not using the ``append`` option, the final cycle in this trace
-is the cycle in which the assertion does not hold.  Check out our `quickstart
-guide <https://yosyshq.readthedocs.io/projects/sby/en/latest/quickstart.html>`_
-for a worked example of examining and fixing a failing assertion.
-
-Running multiple checks
-^^^^^^^^^^^^^^^^^^^^^^^
- 
-**Q:** Is it possible to have more than 1 liveness property check in single formal run?
-
-**A:** Yes, add to SBY file.
-
 Tool runtime
 ^^^^^^^^^^^^
 
@@ -76,33 +49,6 @@ wait in such case?
 **A:** How long to wait is impossible to know, it depends entirely on the problem you are working
 on. Half an hour is not unusual though.
 
-Can liveness properties fail
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 
-**Q:** Is it possible to have liveness property to fail? Or will it just get stuck in formal run 
-
-**A:** We don't recommend using liveness properties - it's almost always better to replace with an
-assertion of something happening within a certain timeframe.
-
-The example our CTO gives is of a design that is stuck in a deadlock, but it has a 64 bit counter
-and when that overflows, things start up again. Liveness will tell you "yup, this design will do
-things eventually" but it really doesn't help you because that 64 bit counter is so large that your
-design will basically never start again.
-
-SystemVerilog Assertions (SVA)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Q:** What subset of SVA is supported?
-
-**A:** Refer to the SBY docs: `Supported SVA property syntax
-<https://yosyshq.readthedocs.io/projects/sby/en/latest/verific.html#supported-sva-property-syntax>`_
-
-Documentation
-^^^^^^^^^^^^^
-
-**Q:** Where are the docs?
-
-**A:** `SBY docs <https://yosyshq.readthedocs.io/projects/sby/en/latest/index.html>`_
 
 Proof complexity
 ^^^^^^^^^^^^^^^^
@@ -133,6 +79,18 @@ correlate with the complexity:
   t:$assume %ci*'``.)
 
 
+Where do assertions fail
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** How do I see what is causing my assertion to fail?
+
+**A:** If an assertion is failing, SBY will provide a counterexample trace.
+Provided you are not using the ``append`` option, the final cycle in this trace
+is the cycle in which the assertion does not hold.  Check out our `quickstart
+guide <https://yosyshq.readthedocs.io/projects/sby/en/latest/quickstart.html>`_
+for a worked example of examining and fixing a failing assertion.
+
+
 Design initialisation
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -147,8 +105,8 @@ Where possible we encourage writing your properties in such a way as to be able 
 signal unconstrained after the initial cycles, so as to check for bugs that might occur after a soft
 reset.
 
-Multiclock
-^^^^^^^^^^
+Clock signals
+^^^^^^^^^^^^^
 
 **Q:** How does SBY detect and handle clock signals?
 
@@ -169,5 +127,62 @@ edges if you let the system run long enough. Not having those constraints in pla
 solver can find the worst case in only a few steps, giving you a short trace. With the constraints,
 getting to that point might take so long that the problem becomes computationally intractable. If
 your clocks are actually related, do add an assumption about that.
+
+
+**Q:** When do I need to enable multi-clock mode?
+
+**A:** You need to set ``multiclock on`` in the ``[options]`` section whenver the design contains entities that are sensitive to different events.
+This includes:
+  - multiple clock signals
+  - multiple edges of the same clock signal
+  - any asynchronous logic (with the exception of asynchronous resets that should be treated as synchronous)
+
+
+Semantics of "disable iff"
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** I would have expected the following to pass. Why does it not pass?
+
+.. code-block:: systemverilog
+
+   assume property (@(posedge clock) A |-> B disable iff (reset));
+   assert property (@(posedge clock) A && !reset |-> B );
+
+**A:** Both of those properties are two simulation cycles long, because the
+clock edge between those two cycles is part of the property. The ``disable iff``
+statement behaves similar to an *asynchronous* reset that is not sampled
+by the clock, thus the sequence ``A && !B && !reset ##1 reset`` will disable
+the assumption, but will not disable the assertion in the above example.
+
+
+Witness cover traces
+^^^^^^^^^^^^^^^^^^^^
+
+**Q:** How do I produce witness cover traces for a passing assertion?
+
+**A:** Check out the `witness cover section
+<https://yosyshq.readthedocs.io/projects/ap120/en/latest/#witness-cover>`_ of our
+whitepaper, `Weak precondition cover and witness for SVA properties
+<https://yosyshq.readthedocs.io/projects/ap120>`_.
+
+.. Running multiple checks
+.. ^^^^^^^^^^^^^^^^^^^^^^^
+ 
+.. **Q:** Is it possible to have more than 1 liveness property check in single formal run?
+
+.. **A:** Yes, add to SBY file.
+
+Can liveness properties fail
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+**Q:** Is it possible to have liveness property to fail? Or will it just get stuck in formal run 
+
+**A:** We don't recommend using liveness properties - it's almost always better to replace with an
+assertion of something happening within a certain timeframe.
+
+The example our CTO gives is of a design that is stuck in a deadlock, but it has a 64 bit counter
+and when that overflows, things start up again. Liveness will tell you "yup, this design will do
+things eventually" but it really doesn't help you because that 64 bit counter is so large that your
+design will basically never start again.
 
 
