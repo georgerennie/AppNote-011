@@ -168,7 +168,8 @@ creates a logic loop that is unstable only when the control signals ``(sx, sy)``
 To break this loop for formal verification, one of the variables in the loop can be replaced with an
 ``anyseq`` wire, and constrained with an assumption to take the desired value when it is known to
 be stable. It is also a good idea to add an assertion checking that the conditions leading to an
-unstable loop cannot happen.
+unstable loop cannot happen. Note that even with this assertion, if unstable loops can occur in other
+cases the design could suffer from `overconstraint due to assumptions`_.
 
 .. code-block:: systemverilog
 
@@ -269,4 +270,15 @@ and when that overflows, things start up again. Liveness will tell you "yup, thi
 things eventually" but it really doesn't help you because that 64 bit counter is so large that your
 design will basically never start again.
 
+Overconstraint due to assumptions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+**Q:** Is it possible for assumptions to hide counterexamples even when they do not share
+any logic with assertions?
+
+**A:** Yes, if all counterexamples to the assertions also violate the assumptions they
+would be hidden. This normally happens if the assumptions make it impossible for the design
+to progress without violating them meaning assertions can vacuously pass even though they
+can never be witnessed to hold. `Witness cover traces`_ can be used to try to guard against
+this type of failure, but care should be taken when applying assumptions, preferring
+assumptions on top-level I/O over internal signals.
