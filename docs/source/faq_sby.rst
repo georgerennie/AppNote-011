@@ -148,13 +148,13 @@ if I don't think there is one. What can I do to allow SBY to process the design?
 only allow nets to take a single value per clock cycle, a property that is violated by unstable
 combinational loops that oscillate. Even when you don't explicitly include a combinational loop
 in the design, they can be introduced by multi-clock mode which introduces combinational
-paths from clock and reset inputs to the Q output for flip-flops and from the enable input to the
+paths from clock and reset inputs to the Q output of flip-flops and from the enable input to the
 output of latches.
 
-If you are confident that a loop is stable, you can break the loop by replacing a connection with
-an assumption. This forces the solvers to only ever produce counterexamples where the loop is
-stable. For example, the following snippet creates a logic loop that is unstable only when
-the control signals ``(sx, sy)`` are both ``0``.
+If you are confident that a loop is only ever unstable under an unreachable condition, you can
+break the loop by replacing a connection with an assumption. This forces the solvers to only
+ever produce counterexamples where the loop is stable. For example, the following snippet
+creates a logic loop that is unstable only when the control signals ``(sx, sy)`` are both ``0``.
 
 .. code-block:: systemverilog
 
@@ -166,18 +166,26 @@ the control signals ``(sx, sy)`` are both ``0``.
    assign y = c + (sy ? d : x);
 
 To break this loop for formal verification, one of the variables in the loop can be replaced with an
-``anyseq`` wire, and constrained with an assumption to take the desired value. It is also a good idea
-to add an assertion checking that the conditions leading to an unstable loop cannot happen.
+``anyseq`` wire, and constrained with an assumption to take the desired value when it is known to
+be stable. It is also a good idea to add an assertion checking that the conditions leading to an
+unstable loop cannot happen.
 
 .. code-block:: systemverilog
 
-   `ifndef FORMAL
-     // break the loop through x using an assumption
-     (* anyseq *) wire x;
-     always_comb assume(x == a + (sx ? b : y));
+   `ifdef FORMAL
+     // Define the conditions when we know the loop will be unstable. At all other
+     // times it is assumed to be stable which can hide counterexamples so care must be
+     // taken. We use an assertion to make sure the unstable condition can never be seen.
+     wire loop_unstable;
+     assign loop_unstable = {sx, sy} == '0;
+     always @* assert(!loop_unstable);
 
-     // assert that we never see the condition leading to an unstable loop
-     always_comb assert({sx, sy} != '0);
+     // Break the loop through x using an assumption when the loop is known to be stable
+     (* anyseq *) wire x;
+     always @* begin
+       if (!loop_unstable)
+         assume(x == a + (sx ? b : y)); 
+     end
    `endif
 
 If the loop is introduced through a latch by multi-clock mode, sometimes the latch can be safely
