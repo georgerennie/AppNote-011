@@ -206,22 +206,19 @@ pattern shown below is an example of a circuit amenable to this technique.
    assign gated_clk_o = en_l & clk_i;
    endmodule
 
-This design rewritten with a flip-flop provides the same functionality for formal verification,
-but doesn't include the same combinational paths in multi-clock mode.
+For formal verification an alternate version of this module can be used where
+a flip-flop is used to rewrite the design without the same combinational paths
+in multi-clock mode.
 
 .. code-block:: systemverilog
 
-   module clock_gate_formal(input wire clk_i, en_i, output wire gated_clk_o);
+   module clock_gate(input wire clk_i, en_i, output wire gated_clk_o);
    reg en_r;
    always @(posedge clk_i)
      en_r <= en_i;
 
    assign gated_clk_o = en_r && clk_i;
    endmodule
-
-Instances of ``clock_gate`` can be replaced with ``clock_gate_formal`` using
-``chtype -map clock_gate clock_gate_formal`` in the ``[script]`` section, and a separate formal
-testbench in multi-clock mode can be used to confirm equivalence of the two modules.
 
 Semantics of "disable iff"
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
