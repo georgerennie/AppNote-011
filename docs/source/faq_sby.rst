@@ -236,6 +236,32 @@ statement behaves similar to an *asynchronous* reset that is not sampled
 by the clock, thus the sequence ``A && !B && !reset ##1 reset`` will disable
 the assumption, but will not disable the assertion in the above example.
 
+Overconstraint due to assumptions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** Is it possible for assumptions to hide counterexamples even when they do not share
+any logic with assertions?
+
+**A:** Yes, if all counterexamples to the assertions also violate the assumptions they
+would be hidden. This normally happens if the assumptions make it impossible for the design
+to progress without violating them meaning assertions can vacuously pass even though they
+can never be witnessed to hold. `Witness cover traces`_ can be used to try to guard against
+this type of failure, but care should be taken when applying assumptions, preferring
+assumptions on top-level I/O over internal signals. An extreme example of overconstraint
+would be a design that fails the `PREUNSAT check`_.
+
+PREUNSAT check
+^^^^^^^^^^^^^^
+
+**Q:** Can SBY detect when assumptions prevent any progress for the design?
+
+**A:** The ``smtbmc`` engine is able to perform ``PREUNSAT`` checks for each
+bound. These check that there is at least one trace of that length that obeys
+all of the assumptions. Failure of the ``PREUNSAT`` check is clear evidence of
+overconstraint, however there are many cases of overconstraint it is unable
+to catch. For example, if the design is able to stall indefinitely in one state,
+this allows arbitrary length traces so PREUNSAT will pass even if the design is
+subsequently overconstrained.
 
 Witness cover traces
 ^^^^^^^^^^^^^^^^^^^^
@@ -266,16 +292,3 @@ The example our CTO gives is of a design that is stuck in a deadlock, but it has
 and when that overflows, things start up again. Liveness will tell you "yup, this design will do
 things eventually" but it really doesn't help you because that 64 bit counter is so large that your
 design will basically never start again.
-
-Overconstraint due to assumptions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Q:** Is it possible for assumptions to hide counterexamples even when they do not share
-any logic with assertions?
-
-**A:** Yes, if all counterexamples to the assertions also violate the assumptions they
-would be hidden. This normally happens if the assumptions make it impossible for the design
-to progress without violating them meaning assertions can vacuously pass even though they
-can never be witnessed to hold. `Witness cover traces`_ can be used to try to guard against
-this type of failure, but care should be taken when applying assumptions, preferring
-assumptions on top-level I/O over internal signals.
