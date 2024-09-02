@@ -138,6 +138,87 @@ This includes:
 - multiple edges of the same clock signal
 - any asynchronous logic (with the exception of asynchronous resets that should be treated as synchronous)
 
+Handling combinational loops
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** SBY is failing to process my design, reporting that it has a topological logic loop even
+if I don't think there is one. What can I do to allow SBY to process the design?
+
+**A:** Formal verification tools struggle to handle combinational loops as the underlying solvers
+only allow nets to take a single value per clock cycle, a property that is violated by unstable
+combinational loops that oscillate. Even when you don't explicitly include a combinational loop
+in the design, they can be introduced by multi-clock mode which introduces combinational
+paths from clock and reset inputs to the Q output of flip-flops and from the enable input to the
+output of latches.
+
+If you are confident that a loop is only ever unstable under an unreachable condition, you can
+break the loop by replacing a connection with an assumption. This forces the solvers to only
+ever produce counterexamples where the loop is stable. For example, the following snippet
+creates a logic loop that is unstable only when the control signals ``(sx, sy)`` are both ``0``.
+
+.. code-block:: systemverilog
+
+   // (sx, sy) = (0, 0) gives an unstable logic loop
+   // (sx, sy) = (0, 1) gives (x, y) = (a + c + d, c + d    )
+   // (sx, sy) = (1, 0) gives (x, y) = (a + b    , a + b + c)
+   // (sx, sy) = (1, 1) gives (x, y) = (a + b    , c + d    )
+   assign x = a + (sx ? b : y);
+   assign y = c + (sy ? d : x);
+
+To break this loop for formal verification, one of the variables in the loop can be replaced with an
+``anyseq`` wire, and constrained with an assumption to take the desired value when it is known to
+be stable. It is also a good idea to add an assertion checking that the conditions leading to an
+unstable loop cannot happen. Note that even with this assertion, if unstable loops can occur in other
+cases the design could suffer from `overconstraint due to assumptions`_.
+
+.. code-block:: systemverilog
+
+   `ifdef FORMAL
+     // Define the conditions when we know the loop will be unstable. At all other
+     // times it is assumed to be stable which can hide counterexamples so care must be
+     // taken. We use an assertion to make sure the unstable condition can never be seen.
+     wire loop_unstable;
+     assign loop_unstable = {sx, sy} == '0;
+     always @* assert(!loop_unstable);
+
+     // Break the loop through x using an assumption when the loop is known to be stable
+     (* anyseq *) wire x;
+     always @* begin
+       if (!loop_unstable)
+         assume(x == a + (sx ? b : y)); 
+     end
+   `endif
+
+If the loop is introduced through a latch by multi-clock mode, sometimes the latch can be safely
+replaced with a flip-flop which doesn't have the same combinational paths. The standard clock-gating
+pattern shown below is an example of a circuit amenable to this technique.
+
+.. code-block:: systemverilog
+
+   module clock_gate(input wire clk_i, input wire en_i, output wire gated_clk_o);
+   // Latch means that en_l only changes when clk_i is low, so gated_clk_o cannot glitch
+   reg en_l;
+   always @* begin
+     if (!clk_i)
+       en_l = en_i;
+   end
+
+   assign gated_clk_o = en_l & clk_i;
+   endmodule
+
+For formal verification an alternate version of this module can be used where
+a flip-flop is used to rewrite the design without the same combinational paths
+in multi-clock mode.
+
+.. code-block:: systemverilog
+
+   module clock_gate(input wire clk_i, en_i, output wire gated_clk_o);
+   reg en_r;
+   always @(posedge clk_i)
+     en_r <= en_i;
+
+   assign gated_clk_o = en_r && clk_i;
+   endmodule
 
 Semantics of "disable iff"
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,6 +236,32 @@ statement behaves similar to an *asynchronous* reset that is not sampled
 by the clock, thus the sequence ``A && !B && !reset ##1 reset`` will disable
 the assumption, but will not disable the assertion in the above example.
 
+Overconstraint due to assumptions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Q:** Is it possible for assumptions to hide counterexamples even when they do not share
+any logic with assertions?
+
+**A:** Yes, if all counterexamples to the assertions also violate the assumptions they
+would be hidden. This normally happens if the assumptions make it impossible for the design
+to progress without violating them meaning assertions can vacuously pass even though they
+can never be witnessed to hold. `Witness cover traces`_ can be used to try to guard against
+this type of failure, but care should be taken when applying assumptions, preferring
+assumptions on top-level I/O over internal signals. An extreme example of overconstraint
+would be a design that fails the `PREUNSAT check`_.
+
+PREUNSAT check
+^^^^^^^^^^^^^^
+
+**Q:** Can SBY detect when assumptions prevent any progress for the design?
+
+**A:** The ``smtbmc`` engine is able to perform ``PREUNSAT`` checks for each
+bound. These check that there is at least one trace of that length that obeys
+all of the assumptions. Failure of the ``PREUNSAT`` check is clear evidence of
+overconstraint, however there are many cases of overconstraint it is unable
+to catch. For example, if the design is able to stall indefinitely in one state,
+this allows arbitrary length traces so PREUNSAT will pass even if the design is
+subsequently overconstrained.
 
 Witness cover traces
 ^^^^^^^^^^^^^^^^^^^^
@@ -185,5 +292,3 @@ The example our CTO gives is of a design that is stuck in a deadlock, but it has
 and when that overflows, things start up again. Liveness will tell you "yup, this design will do
 things eventually" but it really doesn't help you because that 64 bit counter is so large that your
 design will basically never start again.
-
-
